@@ -50,9 +50,19 @@ export const onRequestPost = async ({ request, env }) => {
       return jsonResponse(400, { error: 'No email recipients' }, origin)
     }
 
+    // 邮箱与密钥配置
     const fromEmail = env.MAIL_FROM || `noreply@${(env.SENDER_DOMAIN || 'example.com')}`
     const fromName = env.MAIL_FROM_NAME || 'Save Our Souls'
     const subject = env.MAIL_SUBJECT || 'SOS 警报：需要紧急关注'
+
+    // DKIM 配置（可选）
+    const dkim = (env.DKIM_DOMAIN && env.DKIM_SELECTOR && env.DKIM_PRIVATE_KEY)
+      ? {
+        dkim_domain: env.DKIM_DOMAIN,
+        dkim_selector: env.DKIM_SELECTOR,
+        dkim_private_key: env.DKIM_PRIVATE_KEY,
+      }
+      : {}
 
     const contentText = buildText(reason, when, message, includeScheduleInAlert, schedules)
     const contentHtml = buildHtml(reason, when, message, includeScheduleInAlert, schedules)
@@ -61,13 +71,7 @@ export const onRequestPost = async ({ request, env }) => {
       personalizations: [
         {
           to: emails.map(e => ({ email: e })),
-          ...(env.DKIM_DOMAIN && env.DKIM_SELECTOR && env.DKIM_PRIVATE_KEY
-            ? {
-              dkim_domain: env.DKIM_DOMAIN,
-              dkim_selector: env.DKIM_SELECTOR,
-              dkim_private_key: env.DKIM_PRIVATE_KEY,
-            }
-            : {}),
+          ...dkim,
         },
       ],
       from: { email: fromEmail, name: fromName },
@@ -78,6 +82,7 @@ export const onRequestPost = async ({ request, env }) => {
       ],
     }
 
+    // 实际发送邮件
     const resp = await fetch('https://api.mailchannels.net/tx/v1/send', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

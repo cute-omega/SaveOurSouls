@@ -46,10 +46,6 @@
 - 确认安全页（路径 `/confirm`）：输入代码进行确认。输入危险代码或（在“信任不误输”开启时）输入任意非安全代码，会触发模拟的警报发送；输入安全代码会仅记录“最近一次安全确认时间”。
 
 注意：目前 Email 发送为前端模拟（控制台打印），真正的自动邮件发送需要后端服务支持。
-
-### Cloudflare Pages 部署（含函数后端）
-本仓库已内置 Cloudflare Pages Functions：`functions/api/alert.js`
-- 邮件通过 MailChannels 发送（Cloudflare 官方合作伙伴，Workers/Pages 原生可用）
 - CORS 支持；可选 Bearer Token 认证
 
 步骤：
@@ -67,8 +63,6 @@
 	- `VITE_RELAY_TOKEN`：与后端 `RELAY_TOKEN` 一致（若后端启用鉴权）
 
 部署完成后，前端会向 `/api/alert` 发送告警请求，后端通过 MailChannels 向联系人 Email 投递警报。
-
-### 本地运行
 1. 安装依赖
 2. 启动开发服务
 
@@ -94,7 +88,7 @@
 		 ```powershell
 		 npm run dev:api
 		 ```
-	 - 前端访问 `/api/alert` 会请求到 Wrangler 的本地函数。若端口冲突，可在 `dev:api` 命令后追加 `--port` 来修改。
+	 - 前端访问 `/api/alert` 会请求到 Wrangler 的本地函数。若端口冲突，可在 `dev:api` 命令后追加 `--port` 来修改。使用此方式时，前端热更新正常工作。
 
 2) 仅跑 `wrangler pages dev`（让 Wrangler 代管静态资源与函数）
 	 - 先构建：
