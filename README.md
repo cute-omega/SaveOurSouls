@@ -62,7 +62,7 @@
 5. 前端环境变量（部署时可在 Pages > Environment variables > Build variables 设置）：
 	- `VITE_RELAY_TOKEN`：与后端 `RELAY_TOKEN` 一致（若后端启用鉴权）
 
-部署完成后，前端会向 `/api/alert` 发送告警请求，后端通过 MailChannels 向联系人 Email 投递警报。
+部署完成后，前端会向 `/api/alert` 发送告警请求，后端通过 Resend API 向联系人 Email 投递警报。
 1. 安装依赖
 2. 启动开发服务
 

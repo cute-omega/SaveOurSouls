@@ -1,9 +1,14 @@
 /**
  * Cloudflare Pages Function: POST /api/alert
  * - Auth: optional Bearer token via env.RELAY_TOKEN
- * - Sends email through MailChannels (Workers native partner)
+ * - Sends email via Resend API (https://resend.com)
+ *   Required env: RESEND_API_KEY
+ *   Optional env: RESEND_FROM (e.g., alerts@yourdomain.com), MAIL_FROM_NAME, MAIL_SUBJECT, MAIL_REPLY_TO
  * - CORS enabled
  */
+import { Resend } from 'resend';
+
+const resend = new Resend({ apiKey: env.RESEND_API_KEY })
 
 function corsHeaders(origin) {
   return {
@@ -50,44 +55,29 @@ export const onRequestPost = async ({ request, env }) => {
       return jsonResponse(400, { error: 'No email recipients' }, origin)
     }
 
-    // 邮箱与密钥配置
-    const fromEmail = env.MAIL_FROM || `noreply@${(env.SENDER_DOMAIN || 'example.com')}`
+    // 邮箱与密钥配置（Resend）
+    const apiKey = env.RESEND_API_KEY
+    if (!apiKey) return jsonResponse(500, { error: 'RESEND_API_KEY is not set' }, origin)
+    const fromEmail = env.RESEND_FROM || env.MAIL_FROM || `noreply@${(env.SENDER_DOMAIN || 'example.com')}`
     const fromName = env.MAIL_FROM_NAME || 'Save Our Souls'
     const subject = env.MAIL_SUBJECT || 'SOS 警报：需要紧急关注'
-
-    // DKIM 配置（可选）
-    const dkim = (env.DKIM_DOMAIN && env.DKIM_SELECTOR && env.DKIM_PRIVATE_KEY)
-      ? {
-        dkim_domain: env.DKIM_DOMAIN,
-        dkim_selector: env.DKIM_SELECTOR,
-        dkim_private_key: env.DKIM_PRIVATE_KEY,
-      }
-      : {}
+    const replyTo = env.MAIL_REPLY_TO || undefined
 
     const contentText = buildText(reason, when, message, includeScheduleInAlert, schedules)
     const contentHtml = buildHtml(reason, when, message, includeScheduleInAlert, schedules)
 
     const mailPayload = {
-      personalizations: [
-        {
-          to: emails.map(e => ({ email: e })),
-          ...dkim,
-        },
-      ],
-      from: { email: fromEmail, name: fromName },
+      from: `${fromName} <${fromEmail}>`,
+      to: emails,
       subject,
-      content: [
-        { type: 'text/plain', value: contentText },
-        { type: 'text/html', value: contentHtml },
-      ],
+      text: contentText,
+      html: contentHtml,
+      ...(replyTo ? { reply_to: replyTo } : {}),
     }
 
-    // 实际发送邮件
-    const resp = await fetch('https://api.mailchannels.net/tx/v1/send', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(mailPayload),
-    })
+
+    // 通过 Resend 发送
+    const resp = await resend.emails.send(mailPayload)
 
     if (!resp.ok) {
       const t = await resp.text()
